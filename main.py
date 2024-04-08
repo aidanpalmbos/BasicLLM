@@ -11,13 +11,19 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 class LLMOutHandler(BaseCallbackHandler):
   def __init__(self, device):
     self.tokenstring = ""
+    self.tokenhistory = ""
     self.device = device
 
   def on_llm_new_token(self, token, **kwargs) -> None:
-    self.tokenstring += token;
+    self.tokenstring += token
+    self.tokenhistory += token
 
 def main():
-  device = "cuda" if torch.cuda.is_available() else "cpu"
+  if (torch.cuda.is_available()):
+    device = "cuda"
+  else:
+    device = "cpu"
+    
   print("Device used for LLM: %s" % device)
   start = time.time()
 
@@ -39,17 +45,30 @@ def main():
                  callback_manager = CallbackManager([LLMout]), verbose = False)
   print("Setup took %d seconds" % round(time.time() - start, 2))
 
-  template = """Summarize the following text: '{text}', respond as Snoop Dogg"""
+  #Example => template = """Summarize the following text: '{text}', respond as Snoop Dogg"""
+  template = """'{text}'"""
   prompt = PromptTemplate(template = template, input_variables = ["text"])
   chain = LLMChain(llm = llm, prompt = prompt, verbose = False)
 
-  # Input some text
-  text = input("Enter a query: ")
-
-  # Run the chain
-  chain.run(text = text)
-  print("Response after %d seconds" % round(time.time() - start, 2))
-  print(LLMout.tokenstring, end = '')
+  while(True):
+    text = input("\nPrompt: ")
+    
+    if(text == "/exit"):
+      break
+    
+    elif(text == "/history"):
+      if(LLMout.tokenhistory == ""):
+        print("No history yet, enter text for the LLM to generate.")  
+      else:
+        print(LLMout.tokenhistory)
+        
+    else:
+      promptTime = time.time()
+      chain.invoke(input=text)
+      
+      print("Response took %d seconds:" % round(time.time() - promptTime, 2))
+      print(LLMout.tokenstring)
+      LLMout.tokenstring = ""
 
 if __name__ == "__main__":
   main()
